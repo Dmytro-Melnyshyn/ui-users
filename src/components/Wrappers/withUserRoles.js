@@ -121,7 +121,7 @@ const withUserRoles = (WrappedComponent) => (props) => {
   // 3. For each tenant with role changes, check if the user record exists in Keycloak
   // 4. If any tenants are missing a Keycloak record → show confirmation dialog → on confirm, create Keycloak records for the missing tenants → save roles
   // 5. If none missing → save roles directly
-  const checkAndHandleKeycloakAuthUser = async (onFinish, data, mutator) => {
+  const checkAndHandleKeycloakAuthUser = async (onFinish, data, mutator, options = {}) => {
     // 1. Check keycloak in the home tenant to determine the user data save path.
     const homeKeycloakStatus = await checkUserInKeycloakForTenant(okapi.tenant);
 
@@ -136,16 +136,24 @@ const withUserRoles = (WrappedComponent) => (props) => {
 
     // 3. Find tenants where roles changed and check keycloak in each.
     const tenantsWithChangedRoles = getTenantsWithChangedRoles();
+    const shouldCreateKeycloakUser = options.shouldCreateKeycloakUser
+      && homeKeycloakStatus === KEYCLOAK_USER_EXISTENCE.nonExist;
+    const tenantsToCheck = [...new Set([
+      ...tenantsWithChangedRoles,
+      ...(shouldCreateKeycloakUser ? [okapi.tenant] : []),
+    ])];
 
-    if (!tenantsWithChangedRoles.length) {
+    if (!tenantsToCheck.length) {
       await onFinish();
       return;
     }
 
     // Include home tenant if it doesn't have a keycloak record
-    // and has changed roles, since role assignment requires it.
+    // and has changed roles, since role assignment requires it. It is also
+    // included when a patron is changed to staff, because staff users need a
+    // Keycloak record even when no roles were changed.
     const tenantKeycloakStatuses = await Promise.all(
-      tenantsWithChangedRoles.map(async (tid) => {
+      tenantsToCheck.map(async (tid) => {
         // Reuse the home tenant check result to avoid a duplicate request.
         if (tid === okapi.tenant) return { tid, status: homeKeycloakStatus };
 
