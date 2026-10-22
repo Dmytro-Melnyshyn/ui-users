@@ -1075,6 +1075,48 @@ describe('UserEdit', () => {
       expect(createProps.mutator.records.POST).not.toHaveBeenCalled();
     });
 
+    it('should not show keycloak confirmation dialog when creating a Patron user', async () => {
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button type="button" id="clickable-save" onClick={() => onSubmit({ ...userFormData, type: 'patron' })}>
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(createProps);
+      await userEvent.click(container.querySelector('#clickable-save'));
+
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).not.toHaveBeenCalled();
+      expect(createProps.mutator.records.POST).toHaveBeenCalled();
+    });
+
+    it('should request keycloak creation when changing a Patron user to Staff in a member tenant', async () => {
+      const checkAndHandleKeycloakAuthUser = jest.fn().mockResolvedValue();
+      const editProps = {
+        ...createProps,
+        resources: {
+          ...createProps.resources,
+          selUser: { records: [{ id: 'userId', type: 'patron' }], isPending: false },
+        },
+        match: { params: { id: 'userId' } },
+        checkAndHandleKeycloakAuthUser,
+      };
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button type="button" id="clickable-save" onClick={() => onSubmit({ ...userFormData, type: 'staff' })}>
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(editProps);
+      await userEvent.click(container.querySelector('#clickable-save'));
+
+      expect(checkAndHandleKeycloakAuthUser).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ type: 'staff' }),
+        editProps.mutator,
+        true
+      );
+    });
+
     it('should proceed with user creation when confirmation is accepted', async () => {
       UserForm.mockImplementation(({ onSubmit, confirmCreateKeycloakUser }) => (
         <>

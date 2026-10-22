@@ -33,6 +33,7 @@ import contactTypes from '../../components/data/static/contactTypes';
 import {
   OKAPI_TENANT_HEADER,
   USER_FIELDS_TO_CHECK,
+  USER_TYPES,
   deliveryFulfillmentValues,
   PREFERRED_SP_NONE,
 } from '../../constants';
@@ -297,7 +298,7 @@ class UserEdit extends React.Component {
     const isMemberTenant = checkIfUserInMemberTenant(stripes);
     const centralTenantId = getCentralTenantId(stripes);
 
-    if (isMemberTenant && stripes.hasInterface('users-keycloak')) {
+    if (isMemberTenant && stripes.hasInterface('users-keycloak') && record.type !== USER_TYPES.PATRON) {
       this.pendingCreateRecord = record;
       const centralTenantName = stripes.user?.user?.tenants?.find(t => t.id === centralTenantId)?.name || centralTenantId;
       setKeycloakMissingTenantNames(centralTenantName);
@@ -449,14 +450,21 @@ class UserEdit extends React.Component {
       data.active = (dayjs(user.expirationDate).endOf('day').isSameOrAfter(today));
     }
 
-    await this.updateUserData(data);
+    const shouldCreateKeycloakUser = (
+      checkIfUserInMemberTenant(stripes)
+      && stripes.hasInterface('users-keycloak')
+      && prevUser.type === USER_TYPES.PATRON
+      && user.type === USER_TYPES.STAFF
+    );
+
+    await this.updateUserData(data, shouldCreateKeycloakUser);
   }
 
-  async updateUserData(data) {
+  async updateUserData(data, shouldCreateKeycloakUser = false) {
     const { mutator, stripes } = this.props;
     try {
       if (stripes.hasInterface('users-keycloak')) {
-        await this.props.checkAndHandleKeycloakAuthUser(this.afterUpdate, data, mutator);
+        await this.props.checkAndHandleKeycloakAuthUser(this.afterUpdate, data, mutator, shouldCreateKeycloakUser);
       } else {
         await mutator.selUser.PUT(data);
         await this.afterUpdate();

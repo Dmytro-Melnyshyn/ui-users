@@ -121,7 +121,7 @@ const withUserRoles = (WrappedComponent) => (props) => {
   // 3. For each tenant with role changes, check if the user record exists in Keycloak
   // 4. If any tenants are missing a Keycloak record → show confirmation dialog → on confirm, create Keycloak records for the missing tenants → save roles
   // 5. If none missing → save roles directly
-  const checkAndHandleKeycloakAuthUser = async (onFinish, data, mutator) => {
+  const checkAndHandleKeycloakAuthUser = async (onFinish, data, mutator, shouldCreateKeycloakUser = false) => {
     // 1. Check keycloak in the home tenant to determine the user data save path.
     const homeKeycloakStatus = await checkUserInKeycloakForTenant(okapi.tenant);
 
@@ -138,6 +138,15 @@ const withUserRoles = (WrappedComponent) => (props) => {
     const tenantsWithChangedRoles = getTenantsWithChangedRoles();
 
     if (!tenantsWithChangedRoles.length) {
+      if (shouldCreateKeycloakUser && homeKeycloakStatus === KEYCLOAK_USER_EXISTENCE.nonExist) {
+        tenantsWithoutKeycloakRef.current = [okapi.tenant];
+        const homeTenant = stripes.user?.user?.tenants?.find(t => t.id === okapi.tenant);
+        setKeycloakMissingTenantNames(homeTenant?.name || okapi.tenant);
+        setKeycloakMissingTenantCount(1);
+        setIsCreateKeycloakUserConfirmationOpen(true);
+        return;
+      }
+
       await onFinish();
       return;
     }
