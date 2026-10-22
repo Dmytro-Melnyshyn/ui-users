@@ -13,6 +13,7 @@ import { useUserAffiliationRoles, useCheckUserInKeycloak } from '../../hooks';
 import {
   KEYCLOAK_USER_EXISTENCE,
   USER_AFFILIATION_ROLES_CACHE_KEY,
+  USER_TYPES,
 } from '../../constants';
 import { showErrorCallout } from '../../views/UserEdit/UserEditHelpers';
 
@@ -134,18 +135,30 @@ const withUserRoles = (WrappedComponent) => (props) => {
       await mutator.selUser.PUT(data);
     }
 
-    // 3. Find tenants where roles changed and check keycloak in each.
+    // 3. Find tenants where roles changed and check keycloak in each. A staff
+    // user also needs a keycloak record in the home tenant, even when roles did
+    // not change (for example, when changing a patron into a staff user).
     const tenantsWithChangedRoles = getTenantsWithChangedRoles();
+    const shouldCreateHomeKeycloakUser = (
+      homeKeycloakStatus === KEYCLOAK_USER_EXISTENCE.nonExist
+      && data.type !== USER_TYPES.PATRON
+    );
+    const tenantsToCheck = [...new Set([
+      ...tenantsWithChangedRoles,
+      ...(shouldCreateHomeKeycloakUser ? [okapi.tenant] : []),
+    ])];
 
-    if (!tenantsWithChangedRoles.length) {
+    if (!tenantsToCheck.length) {
       await onFinish();
       return;
     }
 
-    // Include home tenant if it doesn't have a keycloak record
-    // and has changed roles, since role assignment requires it.
+    // Include home tenant if it doesn't have a keycloak record and has changed
+    // roles, since role assignment requires it. The home tenant is also
+    // included for staff users because their user type requires a keycloak
+    // record.
     const tenantKeycloakStatuses = await Promise.all(
-      tenantsWithChangedRoles.map(async (tid) => {
+      tenantsToCheck.map(async (tid) => {
         // Reuse the home tenant check result to avoid a duplicate request.
         if (tid === okapi.tenant) return { tid, status: homeKeycloakStatus };
 

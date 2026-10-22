@@ -94,6 +94,7 @@ const WrappedComponent = ({
   assignedRoleIds,
   setAssignedRoleIds,
   checkAndHandleKeycloakAuthUser,
+  data = mockData,
   confirmCreateKeycloakUser,
   isCreateKeycloakUserConfirmationOpen,
   keycloakMissingTenantNames,
@@ -103,7 +104,7 @@ const WrappedComponent = ({
     <button
       type="submit"
       data-testid="submit-form"
-      onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, mockData, mockMutator)}
+      onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, data, mockMutator)}
     >Submit
     </button>
     <button
@@ -342,6 +343,35 @@ describe('withUserRoles HOC', () => {
     });
 
     describe('and no roles have changed', () => {
+      it('should not show confirmation for a patron without a keycloak record', async () => {
+        useCheckUserInKeycloak.mockReturnValue({
+          checkUserInKeycloakForTenant: jest.fn().mockResolvedValueOnce('nonExist'),
+        });
+
+        const { getByTestId } = renderComponent({
+          data: { ...mockData, type: 'patron' },
+        });
+
+        await act(() => userEvent.click(getByTestId('submit-form')));
+
+        expect(getByTestId('dialog-open')).toHaveTextContent('false');
+        expect(mockOnFinish).toHaveBeenCalled();
+      });
+
+      it('should show confirmation for a staff user without a keycloak record', async () => {
+        useCheckUserInKeycloak.mockReturnValue({
+          checkUserInKeycloakForTenant: jest.fn().mockResolvedValueOnce('nonExist'),
+        });
+
+        const { getByTestId } = renderComponent({
+          data: { ...mockData, type: 'staff' },
+        });
+
+        await act(() => userEvent.click(getByTestId('submit-form')));
+
+        expect(getByTestId('dialog-open')).toHaveTextContent('true');
+      });
+
       it('should call onFinish directly without checking keycloak for non-home tenants or saving roles', async () => {
         const { getByTestId } = renderComponent();
 

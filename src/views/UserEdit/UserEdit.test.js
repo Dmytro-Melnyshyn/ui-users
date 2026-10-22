@@ -1075,6 +1075,24 @@ describe('UserEdit', () => {
       expect(createProps.mutator.records.POST).not.toHaveBeenCalled();
     });
 
+    it('should create a patron directly without keycloak confirmation in a member tenant', async () => {
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button
+          type="button"
+          id="clickable-save"
+          onClick={() => onSubmit({ ...userFormData, type: 'patron' })}
+        >
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(createProps);
+      await userEvent.click(container.querySelector('#clickable-save'));
+
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).not.toHaveBeenCalled();
+      expect(createProps.mutator.records.POST).toHaveBeenCalled();
+    });
+
     it('should proceed with user creation when confirmation is accepted', async () => {
       UserForm.mockImplementation(({ onSubmit, confirmCreateKeycloakUser }) => (
         <>
