@@ -15,6 +15,7 @@
 * Add missing sub permission for fees fines. Refs UIU-3602.
 * Update User buttons on the create/edit page. Refs UIU-3591.
 * Rename user status column header from Active to Status. Refs UIU-3610.
+* Do not show the Keycloak user creation confirmation when creating a Patron user in a member tenant. Fixes UIU-3606.
 * *BREAKING* Provide new `preferredContactTypeIds` multi-selection, require mobile phone when SMS is preferred. Bumps consumed `users` interface to 16.5. Refs UIU-3553.
 * Refactored src/settings/index.js to use Settings instead of custom SettingsPage. Refs UIU-3611.
 * Add localization for the renew error message. Refs UIU-3537.

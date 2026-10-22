@@ -1119,6 +1119,24 @@ describe('UserEdit', () => {
       expect(createProps.history.push).not.toHaveBeenCalled();
     });
 
+    it('should skip keycloak dialog when creating a patron user on member tenant', async () => {
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button
+          type="button"
+          id="clickable-save"
+          onClick={() => onSubmit({ ...userFormData, type: 'patron' })}
+        >
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(createProps);
+      await userEvent.click(container.querySelector('#clickable-save'));
+
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).not.toHaveBeenCalledWith(true);
+      expect(createProps.mutator.records.POST).toHaveBeenCalled();
+    });
+
     it('should skip keycloak dialog when creating user on central tenant', async () => {
       const centralProps = {
         ...createProps,
