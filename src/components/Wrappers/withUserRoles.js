@@ -12,6 +12,7 @@ import isEmpty from 'lodash/isEmpty';
 import { useUserAffiliationRoles, useCheckUserInKeycloak } from '../../hooks';
 import {
   KEYCLOAK_USER_EXISTENCE,
+  USER_TYPES,
   USER_AFFILIATION_ROLES_CACHE_KEY,
 } from '../../constants';
 import { showErrorCallout } from '../../views/UserEdit/UserEditHelpers';
@@ -123,6 +124,8 @@ const withUserRoles = (WrappedComponent) => (props) => {
   // 5. If none missing → save roles directly
   const checkAndHandleKeycloakAuthUser = async (onFinish, data, mutator) => {
     // 1. Check keycloak in the home tenant to determine the user data save path.
+    // Capture the type before saving, as the stored record may be refreshed afterwards.
+    const previousUserType = props.resources?.selUser?.records?.[0]?.type;
     const homeKeycloakStatus = await checkUserInKeycloakForTenant(okapi.tenant);
 
     if (homeKeycloakStatus === KEYCLOAK_USER_EXISTENCE.error) return;
@@ -136,6 +139,13 @@ const withUserRoles = (WrappedComponent) => (props) => {
 
     // 3. Find tenants where roles changed and check keycloak in each.
     const tenantsWithChangedRoles = getTenantsWithChangedRoles();
+
+    // Changing the type from Patron to another type requires a keycloak record in the home tenant.
+    const isPatronTypeChanged = previousUserType === USER_TYPES.PATRON && !!data?.type && data.type !== USER_TYPES.PATRON;
+
+    if (isPatronTypeChanged && !tenantsWithChangedRoles.includes(okapi.tenant)) {
+      tenantsWithChangedRoles.push(okapi.tenant);
+    }
 
     if (!tenantsWithChangedRoles.length) {
       await onFinish();

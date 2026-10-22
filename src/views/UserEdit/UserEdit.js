@@ -35,6 +35,7 @@ import {
   USER_FIELDS_TO_CHECK,
   deliveryFulfillmentValues,
   PREFERRED_SP_NONE,
+  USER_TYPES,
 } from '../../constants';
 import { resourcesLoaded, showErrorCallout } from './UserEditHelpers';
 import { preferredEmailCommunicationOptions } from '../../components/EditSections/EditContactInfo/constants';
@@ -297,7 +298,10 @@ class UserEdit extends React.Component {
     const isMemberTenant = checkIfUserInMemberTenant(stripes);
     const centralTenantId = getCentralTenantId(stripes);
 
-    if (isMemberTenant && stripes.hasInterface('users-keycloak')) {
+    // No Keycloak record is created for Patron users, so no confirmation is needed.
+    const isPatron = record?.type === USER_TYPES.PATRON;
+
+    if (isMemberTenant && !isPatron && stripes.hasInterface('users-keycloak')) {
       this.pendingCreateRecord = record;
       const centralTenantName = stripes.user?.user?.tenants?.find(t => t.id === centralTenantId)?.name || centralTenantId;
       setKeycloakMissingTenantNames(centralTenantName);
