@@ -13,6 +13,7 @@ import { useUserAffiliationRoles, useCheckUserInKeycloak } from '../../hooks';
 import {
   KEYCLOAK_USER_EXISTENCE,
   USER_AFFILIATION_ROLES_CACHE_KEY,
+  USER_TYPES,
 } from '../../constants';
 import { showErrorCallout } from '../../views/UserEdit/UserEditHelpers';
 
@@ -138,6 +139,18 @@ const withUserRoles = (WrappedComponent) => (props) => {
     const tenantsWithChangedRoles = getTenantsWithChangedRoles();
 
     if (!tenantsWithChangedRoles.length) {
+      // Patron users do not have Keycloak records. When a Patron is changed to
+      // Staff, however, the record must be created before finishing the update.
+      if (homeKeycloakStatus === KEYCLOAK_USER_EXISTENCE.nonExist && data.type === USER_TYPES.STAFF) {
+        tenantsWithoutKeycloakRef.current = [okapi.tenant];
+        const homeTenantName = (stripes.user?.user?.tenants || [])
+          .find(tenant => tenant.id === okapi.tenant)?.name || okapi.tenant;
+        setKeycloakMissingTenantNames(homeTenantName);
+        setKeycloakMissingTenantCount(1);
+        setIsCreateKeycloakUserConfirmationOpen(true);
+        return;
+      }
+
       await onFinish();
       return;
     }

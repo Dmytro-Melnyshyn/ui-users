@@ -98,12 +98,13 @@ const WrappedComponent = ({
   isCreateKeycloakUserConfirmationOpen,
   keycloakMissingTenantNames,
   keycloakMissingTenantCount,
+  submitData = mockData,
 }) => (
   <div data-testid="assigned-role-ids">{assignedRoleIds.consortium?.join(', ')}
     <button
       type="submit"
       data-testid="submit-form"
-      onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, mockData, mockMutator)}
+      onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, submitData, mockMutator)}
     >Submit
     </button>
     <button
@@ -342,6 +343,22 @@ describe('withUserRoles HOC', () => {
     });
 
     describe('and no roles have changed', () => {
+      it('should show confirmation when a Patron is changed to Staff', async () => {
+        useCheckUserInKeycloak.mockReturnValue({
+          checkUserInKeycloakForTenant: jest.fn().mockResolvedValue('nonExist'),
+        });
+
+        const { getByTestId } = renderComponent({
+          submitData: { ...mockData, type: 'staff' },
+        });
+
+        await act(() => userEvent.click(getByTestId('submit-form')));
+
+        expect(getByTestId('dialog-open')).toHaveTextContent('true');
+        expect(getByTestId('missing-count')).toHaveTextContent('1');
+        expect(mockOnFinish).not.toHaveBeenCalled();
+      });
+
       it('should call onFinish directly without checking keycloak for non-home tenants or saving roles', async () => {
         const { getByTestId } = renderComponent();
 

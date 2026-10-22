@@ -7,7 +7,7 @@ import renderWithRouter from '../../../test/jest/helpers/renderWithRouter';
 import UserEdit from './UserEdit';
 import UserForm from './UserForm';
 
-import { KEYCLOAK_USER_EXISTENCE } from '../../constants';
+import { KEYCLOAK_USER_EXISTENCE, USER_TYPES } from '../../constants';
 
 const userFormData = {
   departments: [{
@@ -1117,6 +1117,24 @@ describe('UserEdit', () => {
       expect(createProps.setIsCreateKeycloakUserConfirmationOpen).toHaveBeenCalledWith(false);
       expect(createProps.mutator.records.POST).not.toHaveBeenCalled();
       expect(createProps.history.push).not.toHaveBeenCalled();
+    });
+
+    it('should not show keycloak dialog when creating a Patron user on a member tenant', async () => {
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button
+          type="button"
+          id="clickable-save"
+          onClick={() => onSubmit({ ...userFormData, type: USER_TYPES.PATRON })}
+        >
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(createProps);
+      await userEvent.click(container.querySelector('#clickable-save'));
+
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).not.toHaveBeenCalled();
+      expect(createProps.mutator.records.POST).toHaveBeenCalled();
     });
 
     it('should skip keycloak dialog when creating user on central tenant', async () => {
