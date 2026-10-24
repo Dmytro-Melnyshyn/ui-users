@@ -455,6 +455,66 @@ describe('withUserRoles HOC', () => {
     });
   });
 
+  describe('when saving a Patron user', () => {
+    const PatronComponent = ({
+      checkAndHandleKeycloakAuthUser,
+      isCreateKeycloakUserConfirmationOpen,
+      keycloakMissingTenantNames,
+    }) => (
+      <div>
+        <button
+          type="button"
+          data-testid="submit-staff"
+          onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, { ...mockData, type: 'staff' }, mockMutator)}
+        >
+          Submit as staff
+        </button>
+        <button
+          type="button"
+          data-testid="submit-patron"
+          onClick={() => checkAndHandleKeycloakAuthUser(mockOnFinish, { ...mockData, type: 'patron' }, mockMutator)}
+        >
+          Submit as patron
+        </button>
+        <span data-testid="dialog-open">{String(isCreateKeycloakUserConfirmationOpen)}</span>
+        <span data-testid="missing-names">{keycloakMissingTenantNames}</span>
+      </div>
+    );
+    const CompWithPatron = withUserRoles(PatronComponent);
+    const renderWithSavedType = (type) => render(
+      <CompWithPatron
+        match={{ params: { id: 'user1' } }}
+        resources={{ selUser: { records: [{ id: 'user1', type }] } }}
+      />
+    );
+
+    beforeEach(() => {
+      // user has no keycloak record in the home tenant
+      useCheckUserInKeycloak.mockReturnValue({
+        checkUserInKeycloakForTenant: jest.fn().mockResolvedValue('nonExist'),
+      });
+    });
+
+    it('should open the keycloak confirmation when the type is changed to Staff', async () => {
+      const { getByTestId } = renderWithSavedType('patron');
+
+      await act(() => userEvent.click(getByTestId('submit-staff')));
+
+      expect(getByTestId('dialog-open')).toHaveTextContent('true');
+      expect(getByTestId('missing-names')).toHaveTextContent('Consortium');
+      expect(mockOnFinish).not.toHaveBeenCalled();
+    });
+
+    it('should not open the keycloak confirmation when the type is not changed', async () => {
+      const { getByTestId } = renderWithSavedType('patron');
+
+      await act(() => userEvent.click(getByTestId('submit-patron')));
+
+      expect(getByTestId('dialog-open')).toHaveTextContent('false');
+      expect(mockOnFinish).toHaveBeenCalled();
+    });
+  });
+
   describe('confirmation dialog', () => {
     describe('when confirming creation of keycloak user for tenants missing keycloak records', () => {
       it('should create keycloak users for the missing tenants', async () => {

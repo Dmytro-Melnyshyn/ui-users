@@ -666,6 +666,60 @@ describe('UserEdit', () => {
     });
   });
 
+  describe('Create user on a member tenant', () => {
+    const createProps = {
+      ...props,
+      resources: {
+        ...props.resources,
+        uniquenessValidator: { records: [] },
+        selUser: { records: [] },
+      },
+      match: { params: { id: '' } },
+      stripes: {
+        ...props.stripes,
+        // all interfaces (incl. consortia) are present and okapi tenant differs from the central one => member tenant
+        hasInterface: jest.fn().mockReturnValue(true),
+        user: {
+          user: {
+            id: 'other-user-id',
+            consortium: { centralTenantId: 'central' },
+            tenants: [{ id: 'central', name: 'Central' }],
+          },
+        },
+      },
+      setIsCreateKeycloakUserConfirmationOpen: jest.fn(),
+      setKeycloakMissingTenantNames: jest.fn(),
+      setKeycloakMissingTenantCount: jest.fn(),
+    };
+
+    const submitWithType = async (type) => {
+      UserForm.mockImplementation(({ onSubmit }) => (
+        <button type="button" id="clickable-save" onClick={() => onSubmit({ ...userFormData, type })}>
+          Submit Form
+        </button>
+      ));
+
+      const { container } = await renderUserEdit(createProps);
+
+      await userEvent.click(container.querySelector('#clickable-save'));
+    };
+
+    it('should save a Patron user directly without the keycloak confirmation', async () => {
+      await submitWithType('patron');
+
+      expect(createProps.mutator.records.POST).toHaveBeenCalledWith(expect.objectContaining({ type: 'patron' }));
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).not.toHaveBeenCalled();
+    });
+
+    it('should open the keycloak confirmation for a non-Patron user', async () => {
+      await submitWithType('staff');
+
+      expect(createProps.setIsCreateKeycloakUserConfirmationOpen).toHaveBeenCalledWith(true);
+      expect(createProps.setKeycloakMissingTenantNames).toHaveBeenCalledWith('Central');
+      expect(createProps.mutator.records.POST).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Cancel user form', () => {
     const defaultProps = {
       stripes: {
